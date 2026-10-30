@@ -1,47 +1,78 @@
-# Especificación OpenAPI 3.0 de la API de Cálculo de Horas Pagas.
+# Especificación OpenAPI 3.0 de la API de Horas Pagas.
 # Swagger UI lee este archivo y genera el portal interactivo que se publica en /api-docs.
 openapi: 3.0.0
 
-# Información general de la API
 info:
-  title: API de Cálculo de Horas Pagas
-  description: |
-    API RESTful (Node.js + Express + MongoDB) para administrar roles, empleados y registros
-    de horas trabajadas, y calcular cuánto debe cobrar cada empleado.
-
-    **Reglas de cálculo:**
-    - Cada rol tiene un valor por hora, y cada empleado toma el valor de su rol.
-    - Las primeras 8 horas de cada día se pagan al valor normal.
-    - Las horas que superan las 8 diarias se pagan con un recargo del 50% (al 150%).
-
-    **Formato de las respuestas (Envelope Pattern):**
-    - Éxito: `{ "status": "success", "data": ... }`
-    - Error: `{ "status": "error", "message": "...", "errors": [...] }`
+  title: API de Horas Pagas
   version: 1.0.0
+  description: |
+    Calcula **cuánto cobra cada empleado** según las horas que trabajó, el rol que tiene
+    y si hizo horas extra.
 
-# Servidor donde se prueba la API (los paths de abajo se suman a esta URL)
+    ## Cómo se calcula el pago
+
+    | Horas del día | Cómo se pagan |
+    | --- | --- |
+    | Hasta 8 horas | Al valor normal de la hora |
+    | Más de 8 horas | Valor de la hora × **1,5** (recargo del 50 %) |
+
+    El valor de la hora sale del **rol** del empleado.
+
+    **Ejemplo:** un Administrativo ($4.000 la hora) que trabaja 9 horas cobra
+    `8 × 4.000 + 1 × 4.000 × 1,5 = $38.000`.
+
+    > Cada empleado puede tener **un solo registro por día**. Así las horas extra
+    > siempre se calculan sobre la jornada completa.
+
+    ## Cómo probarla en 3 pasos
+
+    1. En **Empleados**, ejecutá `GET /empleados` y copiá el `_id` de uno.
+    2. En **Registros de horas**, ejecutá `POST /registros-horas` con ese `_id`.
+    3. Mirá el pago en `calculo.totalPagar` de la respuesta.
+
+    ## Formato de las respuestas
+
+    | Resultado | Formato |
+    | --- | --- |
+    | Éxito | `{ "status": "success", "data": ... }` |
+    | Error | `{ "status": "error", "message": "...", "errors": [...] }` |
+
+    ## Códigos de estado
+
+    | Código | Significado |
+    | --- | --- |
+    | `200` | Consulta, modificación o eliminación correcta |
+    | `201` | Recurso creado |
+    | `400` | Datos inválidos, ID mal formado, valor duplicado o regla de integridad |
+    | `404` | El recurso no existe |
+    | `500` | Error interno del servidor |
+
 servers:
   - url: http://localhost:3000/api/v1
     description: Servidor de desarrollo local
 
-# Grupos en los que Swagger UI organiza los endpoints
+# El orden de esta lista es el orden en que Swagger UI muestra los grupos
 tags:
   - name: Roles
-    description: Administración de roles y su valor por hora
+    description: |
+      Cada rol define el **valor de la hora**. Se crean primero, porque cada empleado tiene uno.
   - name: Empleados
-    description: Administración de empleados (cada uno tiene un rol)
+    description: |
+      Las personas a las que se les paga. Cada empleado tiene un **rol** y un **DNI único**.
   - name: Registros de horas
-    description: Registro de horas trabajadas y cálculo del pago
+    description: |
+      Las horas trabajadas por día. Cada respuesta incluye el **cálculo del pago**.
 
 paths:
   # ---------------------------------------------------------------- ROLES
   /roles:
     get:
-      summary: Listar todos los roles
+      summary: Listar roles
+      description: Devuelve todos los roles ordenados por nombre.
       tags: [Roles]
       responses:
         "200":
-          description: Lista de roles ordenada por nombre
+          description: Lista de roles
           content:
             application/json:
               schema:
@@ -50,6 +81,7 @@ paths:
           $ref: "#/components/responses/ErrorInterno"
     post:
       summary: Crear un rol
+      description: El nombre del rol es único.
       tags: [Roles]
       requestBody:
         required: true
@@ -65,13 +97,34 @@ paths:
               schema:
                 $ref: "#/components/schemas/RespuestaRol"
         "400":
-          $ref: "#/components/responses/DatosInvalidos"
+          description: Datos inválidos o nombre de rol repetido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaError"
+              examples:
+                validacion:
+                  summary: Dato inválido
+                  value:
+                    status: error
+                    message: Error de validación
+                    errors:
+                      - campo: valorHora
+                        mensaje: El valor por hora no puede ser negativo
+                duplicado:
+                  summary: El rol ya existe
+                  value:
+                    status: error
+                    message: Ya existe un registro con ese valor
+                    errors:
+                      - campo: nombre
+                        mensaje: Ya existe un registro con ese valor
         "500":
           $ref: "#/components/responses/ErrorInterno"
 
   /roles/{id}:
     get:
-      summary: Obtener un rol por ID
+      summary: Obtener un rol
       tags: [Roles]
       parameters:
         - $ref: "#/components/parameters/IdRuta"
@@ -83,13 +136,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/RespuestaRol"
         "400":
-          $ref: "#/components/responses/DatosInvalidos"
+          $ref: "#/components/responses/IdInvalido"
         "404":
           $ref: "#/components/responses/NoEncontrado"
         "500":
           $ref: "#/components/responses/ErrorInterno"
     put:
-      summary: Actualizar un rol
+      summary: Reemplazar un rol
+      description: Reemplaza los datos del rol. Hay que enviar todos los campos.
       tags: [Roles]
       parameters:
         - $ref: "#/components/parameters/IdRuta"
@@ -114,19 +168,28 @@ paths:
           $ref: "#/components/responses/ErrorInterno"
     delete:
       summary: Eliminar un rol
-      description: No se puede eliminar un rol que esté asignado a algún empleado (responde 400).
+      description: |
+        No se puede eliminar un rol que tenga **empleados asignados** (responde `400`).
       tags: [Roles]
       parameters:
         - $ref: "#/components/parameters/IdRuta"
       responses:
         "200":
-          description: Rol eliminado correctamente
+          description: Rol eliminado. Devuelve el rol que se borró.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RespuestaRol"
         "400":
-          $ref: "#/components/responses/DatosInvalidos"
+          description: ID mal formado o rol con empleados asignados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaError"
+              example:
+                status: error
+                message: No se puede eliminar el rol porque hay empleados que lo tienen asignado
+                errors: []
         "404":
           $ref: "#/components/responses/NoEncontrado"
         "500":
@@ -135,8 +198,8 @@ paths:
   # ------------------------------------------------------------ EMPLEADOS
   /empleados:
     get:
-      summary: Listar todos los empleados
-      description: Devuelve los empleados ordenados por apellido, cada uno con su rol completo.
+      summary: Listar empleados
+      description: Ordenados por apellido. Cada empleado trae su **rol completo**.
       tags: [Empleados]
       responses:
         "200":
@@ -149,7 +212,9 @@ paths:
           $ref: "#/components/responses/ErrorInterno"
     post:
       summary: Crear un empleado
-      description: El rol indicado en rolId debe existir (si no, responde 400). El DNI es único.
+      description: |
+        El `rolId` tiene que ser el `_id` de un rol existente (sacalo de `GET /roles`).
+        El DNI es único.
       tags: [Empleados]
       requestBody:
         required: true
@@ -165,31 +230,59 @@ paths:
               schema:
                 $ref: "#/components/schemas/RespuestaEmpleado"
         "400":
-          $ref: "#/components/responses/DatosInvalidos"
+          description: Datos inválidos, rol inexistente o DNI repetido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaError"
+              examples:
+                validacion:
+                  summary: Dato inválido
+                  value:
+                    status: error
+                    message: Error de validación
+                    errors:
+                      - campo: dni
+                        mensaje: El DNI debe tener 7 u 8 dígitos
+                rolInexistente:
+                  summary: El rol no existe
+                  value:
+                    status: error
+                    message: El rol indicado no existe
+                    errors: []
+                dniRepetido:
+                  summary: DNI ya cargado
+                  value:
+                    status: error
+                    message: Ya existe un registro con ese valor
+                    errors:
+                      - campo: dni
+                        mensaje: Ya existe un registro con ese valor
         "500":
           $ref: "#/components/responses/ErrorInterno"
 
   /empleados/{id}:
     get:
-      summary: Obtener un empleado por ID
+      summary: Obtener un empleado
       tags: [Empleados]
       parameters:
         - $ref: "#/components/parameters/IdRuta"
       responses:
         "200":
-          description: Empleado encontrado
+          description: Empleado encontrado, con su rol
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RespuestaEmpleado"
         "400":
-          $ref: "#/components/responses/DatosInvalidos"
+          $ref: "#/components/responses/IdInvalido"
         "404":
           $ref: "#/components/responses/NoEncontrado"
         "500":
           $ref: "#/components/responses/ErrorInterno"
     put:
-      summary: Actualizar un empleado
+      summary: Reemplazar un empleado
+      description: Reemplaza los datos del empleado. Hay que enviar todos los campos.
       tags: [Empleados]
       parameters:
         - $ref: "#/components/parameters/IdRuta"
@@ -214,19 +307,28 @@ paths:
           $ref: "#/components/responses/ErrorInterno"
     delete:
       summary: Eliminar un empleado
-      description: No se puede eliminar un empleado que tenga registros de horas (responde 400).
+      description: |
+        No se puede eliminar un empleado que tenga **registros de horas** (responde `400`).
       tags: [Empleados]
       parameters:
         - $ref: "#/components/parameters/IdRuta"
       responses:
         "200":
-          description: Empleado eliminado correctamente
+          description: Empleado eliminado. Devuelve el empleado que se borró.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RespuestaEmpleadoEliminado"
         "400":
-          $ref: "#/components/responses/DatosInvalidos"
+          description: ID mal formado o empleado con registros de horas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaError"
+              example:
+                status: error
+                message: No se puede eliminar el empleado porque tiene registros de horas asociados
+                errors: []
         "404":
           $ref: "#/components/responses/NoEncontrado"
         "500":
@@ -235,8 +337,8 @@ paths:
   # ----------------------------------------------------- REGISTROS DE HORAS
   /registros-horas:
     get:
-      summary: Listar todos los registros de horas
-      description: Del más reciente al más antiguo, cada uno con el cálculo de su pago.
+      summary: Listar registros de horas
+      description: Del más reciente al más antiguo. Cada registro trae el **cálculo de su pago**.
       tags: [Registros de horas]
       responses:
         "200":
@@ -248,10 +350,14 @@ paths:
         "500":
           $ref: "#/components/responses/ErrorInterno"
     post:
-      summary: Crear un registro de horas
+      summary: Cargar horas trabajadas
       description: |
-        Calcula el pago con el valor por hora del rol del empleado y guarda el registro.
-        Si el empleado no existe o no tiene rol, responde 400 y no se guarda nada.
+        Guarda las horas de un empleado en un día y **calcula el pago** con el valor de hora
+        de su rol.
+
+        - Reemplazá `empleadoId` por el `_id` de un empleado real (`GET /empleados`).
+        - Un empleado solo puede tener **un registro por día**.
+        - Si el empleado no existe o no tiene rol, responde `400` y no se guarda nada.
       tags: [Registros de horas]
       requestBody:
         required: true
@@ -259,6 +365,19 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/NuevoRegistroHoras"
+            examples:
+              jornadaNormal:
+                summary: Jornada normal (8 horas)
+                value:
+                  empleadoId: 6ae188baa9c7c3799346f663
+                  fecha: "2026-11-02"
+                  horasTrabajadas: 8
+              conHorasExtra:
+                summary: Con horas extra (10 horas)
+                value:
+                  empleadoId: 6ae188baa9c7c3799346f663
+                  fecha: "2026-11-03"
+                  horasTrabajadas: 10
       responses:
         "201":
           description: Registro creado, con el cálculo del pago
@@ -267,13 +386,42 @@ paths:
               schema:
                 $ref: "#/components/schemas/RespuestaRegistro"
         "400":
-          $ref: "#/components/responses/DatosInvalidos"
+          description: Datos inválidos, empleado inexistente o día ya cargado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaError"
+              examples:
+                validacion:
+                  summary: Dato inválido
+                  value:
+                    status: error
+                    message: Error de validación
+                    errors:
+                      - campo: horasTrabajadas
+                        mensaje: No se pueden registrar más de 24 horas por día
+                empleadoInexistente:
+                  summary: El empleado no existe
+                  value:
+                    status: error
+                    message: No se encontró el empleado
+                    errors: []
+                diaRepetido:
+                  summary: Ese empleado ya tiene horas cargadas ese día
+                  value:
+                    status: error
+                    message: Ya existe un registro con ese valor
+                    errors:
+                      - campo: empleadoId
+                        mensaje: Ya existe un registro con ese valor
+                      - campo: fecha
+                        mensaje: Ya existe un registro con ese valor
         "500":
           $ref: "#/components/responses/ErrorInterno"
 
   /registros-horas/{id}:
     get:
-      summary: Obtener un registro de horas por ID
+      summary: Obtener un registro
       tags: [Registros de horas]
       parameters:
         - $ref: "#/components/parameters/IdRuta"
@@ -285,14 +433,16 @@ paths:
               schema:
                 $ref: "#/components/schemas/RespuestaRegistro"
         "400":
-          $ref: "#/components/responses/DatosInvalidos"
+          $ref: "#/components/responses/IdInvalido"
         "404":
           $ref: "#/components/responses/NoEncontrado"
         "500":
           $ref: "#/components/responses/ErrorInterno"
     put:
-      summary: Actualizar un registro de horas
-      description: Verifica que el registro, el empleado y su rol existan, y recalcula el pago.
+      summary: Reemplazar un registro
+      description: |
+        Verifica que el registro, el empleado y su rol existan, y **recalcula el pago**.
+        Hay que enviar todos los campos.
       tags: [Registros de horas]
       parameters:
         - $ref: "#/components/parameters/IdRuta"
@@ -316,19 +466,19 @@ paths:
         "500":
           $ref: "#/components/responses/ErrorInterno"
     delete:
-      summary: Eliminar un registro de horas
+      summary: Eliminar un registro
       tags: [Registros de horas]
       parameters:
         - $ref: "#/components/parameters/IdRuta"
       responses:
         "200":
-          description: Registro eliminado correctamente
+          description: Registro eliminado. Devuelve el registro que se borró.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RespuestaRegistroEliminado"
         "400":
-          $ref: "#/components/responses/DatosInvalidos"
+          $ref: "#/components/responses/IdInvalido"
         "404":
           $ref: "#/components/responses/NoEncontrado"
         "500":
@@ -341,7 +491,7 @@ components:
       name: id
       in: path
       required: true
-      description: ID del documento en MongoDB (24 caracteres hexadecimales)
+      description: "`_id` del documento (24 caracteres hexadecimales)"
       schema:
         type: string
         example: 6ae188baa9c7c3799346f660
@@ -349,7 +499,7 @@ components:
   # Respuestas de error que se reutilizan en varios endpoints
   responses:
     DatosInvalidos:
-      description: Datos inválidos, identificador mal formado o regla de negocio incumplida
+      description: Datos inválidos, ID mal formado o regla de negocio incumplida
       content:
         application/json:
           schema:
@@ -358,17 +508,27 @@ components:
             status: error
             message: Error de validación
             errors:
-              - campo: valorHora
-                mensaje: El valor por hora no puede ser negativo
-    NoEncontrado:
-      description: El recurso solicitado no existe
+              - campo: horasTrabajadas
+                mensaje: Las horas deben ser mayores que cero
+    IdInvalido:
+      description: El ID no tiene el formato correcto
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/RespuestaError"
           example:
             status: error
-            message: No se encontró el rol
+            message: El identificador enviado no es válido
+            errors: []
+    NoEncontrado:
+      description: No existe un recurso con ese ID
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RespuestaError"
+          example:
+            status: error
+            message: No se encontró el recurso solicitado
             errors: []
     ErrorInterno:
       description: Error interno del servidor
@@ -394,6 +554,7 @@ components:
           example: Administrativo
         valorHora:
           type: number
+          description: Valor de la hora normal de trabajo
           example: 4000
         createdAt:
           type: string
@@ -410,7 +571,7 @@ components:
       properties:
         nombre:
           type: string
-          description: Nombre del rol (único, sin espacios al inicio ni al final)
+          description: Nombre del rol (único)
           example: Gerente
         valorHora:
           type: number
@@ -438,9 +599,11 @@ components:
         createdAt:
           type: string
           format: date-time
+          example: "2026-10-28T05:31:38.700Z"
         updatedAt:
           type: string
           format: date-time
+          example: "2026-10-28T05:31:38.700Z"
 
     # Al eliminar, el empleado se devuelve sin cargar el rol: rolId es solo el ID
     EmpleadoEliminado:
@@ -460,6 +623,7 @@ components:
           example: "30111222"
         rolId:
           type: string
+          description: Solo el ID del rol (acá no se carga el rol completo)
           example: 6ae188baa9c7c3799346f661
 
     NuevoEmpleado:
@@ -475,11 +639,11 @@ components:
         dni:
           type: string
           pattern: '^\d{7,8}$'
-          description: DNI de 7 u 8 dígitos (único)
+          description: DNI de 7 u 8 dígitos, solo números (único)
           example: "30111222"
         rolId:
           type: string
-          description: ID de un rol existente
+          description: "`_id` de un rol existente"
           example: 6ae188baa9c7c3799346f661
 
     RegistroHoras:
@@ -493,17 +657,20 @@ components:
           example: 6ae188baa9c7c3799346f663
         fecha:
           type: string
-          format: date-time
-          example: "2026-10-26T00:00:00.000Z"
+          format: date
+          description: Día trabajado, sin hora (AAAA-MM-DD)
+          example: "2026-10-26"
         horasTrabajadas:
           type: number
           example: 9
         createdAt:
           type: string
           format: date-time
+          example: "2026-10-28T05:31:38.800Z"
         updatedAt:
           type: string
           format: date-time
+          example: "2026-10-28T05:31:38.800Z"
 
     NuevoRegistroHoras:
       type: object
@@ -511,17 +678,18 @@ components:
       properties:
         empleadoId:
           type: string
-          description: ID de un empleado existente que tenga rol
+          description: "`_id` de un empleado existente que tenga rol"
           example: 6ae188baa9c7c3799346f663
         fecha:
           type: string
-          description: Fecha trabajada
-          example: "2026-10-28"
+          format: date
+          description: Día trabajado (AAAA-MM-DD). Un empleado solo puede tener un registro por día.
+          example: "2026-11-02"
         horasTrabajadas:
           type: number
           minimum: 0.01
           maximum: 24
-          description: Horas trabajadas en el día (mayor que 0 y hasta 24)
+          description: Horas trabajadas en el día (más de 0 y hasta 24). Se admiten decimales.
           example: 9
 
     # Detalle del pago de un registro
@@ -540,7 +708,7 @@ components:
           example: 8
         horasExtra:
           type: number
-          description: Horas por encima de 8, pagadas al 150%
+          description: Horas por encima de 8, pagadas al 150 %
           example: 1
         valorHora:
           type: number
@@ -548,12 +716,15 @@ components:
           example: 4000
         pagoNormal:
           type: number
+          description: horasNormales × valorHora
           example: 32000
         pagoExtra:
           type: number
+          description: horasExtra × valorHora × 1,5
           example: 6000
         totalPagar:
           type: number
+          description: pagoNormal + pagoExtra
           example: 38000
 
     RegistroConCalculo:
@@ -657,3 +828,10 @@ components:
           description: Detalle de los errores (por ejemplo, un objeto por campo inválido)
           items:
             type: object
+            properties:
+              campo:
+                type: string
+                example: horasTrabajadas
+              mensaje:
+                type: string
+                example: Las horas deben ser mayores que cero

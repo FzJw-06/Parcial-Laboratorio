@@ -1,7 +1,8 @@
 // Punto de entrada de la aplicación: configura Express, registra las rutas y arranca el servidor.
-
+//app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // Carga las variables del archivo .env (PORT, MONGO_URI) dentro de process.env
 import "dotenv/config";
+import fs from "node:fs";
 import path from "node:path";
 import express from "express";
 import swaggerUi from "swagger-ui-express";
@@ -20,10 +21,28 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Documentación interactiva (Swagger UI) a partir del archivo OpenAPI
+// Documentación interactiva (Swagger UI) a partir del archivo OpenAPI
 const swaggerDocument = YAML.load(
   path.join(import.meta.dirname, "docs", "swagger.yaml"),
 );
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+const swaggerCss = fs.readFileSync(
+  path.join(import.meta.dirname, "docs", "swagger.css"),
+  "utf8",
+);
+
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerDocument, {
+    customCss: swaggerCss,
+    customSiteTitle: "API Horas Pagas",
+    swaggerOptions: {
+      docExpansion: "none", // los endpoints arrancan cerrados
+      defaultModelsExpandDepth: -1, // oculta la sección "Schemas" del final
+      tagsSorter: "alpha",
+    },
+  }),
+);
 
 // Middleware que convierte el cuerpo JSON de las peticiones en un objeto (req.body)
 app.use(express.json());
