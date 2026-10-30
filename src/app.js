@@ -2,7 +2,10 @@
 
 // Carga las variables del archivo .env (PORT, MONGO_URI) dentro de process.env
 import "dotenv/config";
+import path from "node:path";
 import express from "express";
+import swaggerUi from "swagger-ui-express";
+import YAML from "yamljs";
 import { conectarMongo } from "./config/dbMongo.js";
 import rolRoutes from "./routes/rolRoutes.js";
 import empleadoRoutes from "./routes/empleadoRoutes.js";
@@ -15,6 +18,12 @@ import {
 const app = express();
 // Usa el puerto del .env; si no está definido, usa el 3000
 const PORT = process.env.PORT || 3000;
+
+// Documentación interactiva (Swagger UI) a partir del archivo OpenAPI
+const swaggerDocument = YAML.load(
+  path.join(import.meta.dirname, "docs", "swagger.yaml"),
+);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Middleware que convierte el cuerpo JSON de las peticiones en un objeto (req.body)
 app.use(express.json());

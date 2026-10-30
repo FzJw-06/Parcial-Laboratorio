@@ -1,0 +1,659 @@
+# Especificación OpenAPI 3.0 de la API de Cálculo de Horas Pagas.
+# Swagger UI lee este archivo y genera el portal interactivo que se publica en /api-docs.
+openapi: 3.0.0
+
+# Información general de la API
+info:
+  title: API de Cálculo de Horas Pagas
+  description: |
+    API RESTful (Node.js + Express + MongoDB) para administrar roles, empleados y registros
+    de horas trabajadas, y calcular cuánto debe cobrar cada empleado.
+
+    **Reglas de cálculo:**
+    - Cada rol tiene un valor por hora, y cada empleado toma el valor de su rol.
+    - Las primeras 8 horas de cada día se pagan al valor normal.
+    - Las horas que superan las 8 diarias se pagan con un recargo del 50% (al 150%).
+
+    **Formato de las respuestas (Envelope Pattern):**
+    - Éxito: `{ "status": "success", "data": ... }`
+    - Error: `{ "status": "error", "message": "...", "errors": [...] }`
+  version: 1.0.0
+
+# Servidor donde se prueba la API (los paths de abajo se suman a esta URL)
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Servidor de desarrollo local
+
+# Grupos en los que Swagger UI organiza los endpoints
+tags:
+  - name: Roles
+    description: Administración de roles y su valor por hora
+  - name: Empleados
+    description: Administración de empleados (cada uno tiene un rol)
+  - name: Registros de horas
+    description: Registro de horas trabajadas y cálculo del pago
+
+paths:
+  # ---------------------------------------------------------------- ROLES
+  /roles:
+    get:
+      summary: Listar todos los roles
+      tags: [Roles]
+      responses:
+        "200":
+          description: Lista de roles ordenada por nombre
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaRoles"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+    post:
+      summary: Crear un rol
+      tags: [Roles]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NuevoRol"
+      responses:
+        "201":
+          description: Rol creado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaRol"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /roles/{id}:
+    get:
+      summary: Obtener un rol por ID
+      tags: [Roles]
+      parameters:
+        - $ref: "#/components/parameters/IdRuta"
+      responses:
+        "200":
+          description: Rol encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaRol"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+    put:
+      summary: Actualizar un rol
+      tags: [Roles]
+      parameters:
+        - $ref: "#/components/parameters/IdRuta"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NuevoRol"
+      responses:
+        "200":
+          description: Rol actualizado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaRol"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+    delete:
+      summary: Eliminar un rol
+      description: No se puede eliminar un rol que esté asignado a algún empleado (responde 400).
+      tags: [Roles]
+      parameters:
+        - $ref: "#/components/parameters/IdRuta"
+      responses:
+        "200":
+          description: Rol eliminado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaRol"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  # ------------------------------------------------------------ EMPLEADOS
+  /empleados:
+    get:
+      summary: Listar todos los empleados
+      description: Devuelve los empleados ordenados por apellido, cada uno con su rol completo.
+      tags: [Empleados]
+      responses:
+        "200":
+          description: Lista de empleados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaEmpleados"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+    post:
+      summary: Crear un empleado
+      description: El rol indicado en rolId debe existir (si no, responde 400). El DNI es único.
+      tags: [Empleados]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NuevoEmpleado"
+      responses:
+        "201":
+          description: Empleado creado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaEmpleado"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /empleados/{id}:
+    get:
+      summary: Obtener un empleado por ID
+      tags: [Empleados]
+      parameters:
+        - $ref: "#/components/parameters/IdRuta"
+      responses:
+        "200":
+          description: Empleado encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaEmpleado"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+    put:
+      summary: Actualizar un empleado
+      tags: [Empleados]
+      parameters:
+        - $ref: "#/components/parameters/IdRuta"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NuevoEmpleado"
+      responses:
+        "200":
+          description: Empleado actualizado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaEmpleado"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+    delete:
+      summary: Eliminar un empleado
+      description: No se puede eliminar un empleado que tenga registros de horas (responde 400).
+      tags: [Empleados]
+      parameters:
+        - $ref: "#/components/parameters/IdRuta"
+      responses:
+        "200":
+          description: Empleado eliminado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaEmpleadoEliminado"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  # ----------------------------------------------------- REGISTROS DE HORAS
+  /registros-horas:
+    get:
+      summary: Listar todos los registros de horas
+      description: Del más reciente al más antiguo, cada uno con el cálculo de su pago.
+      tags: [Registros de horas]
+      responses:
+        "200":
+          description: Lista de registros con su cálculo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaRegistros"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+    post:
+      summary: Crear un registro de horas
+      description: |
+        Calcula el pago con el valor por hora del rol del empleado y guarda el registro.
+        Si el empleado no existe o no tiene rol, responde 400 y no se guarda nada.
+      tags: [Registros de horas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NuevoRegistroHoras"
+      responses:
+        "201":
+          description: Registro creado, con el cálculo del pago
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaRegistro"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /registros-horas/{id}:
+    get:
+      summary: Obtener un registro de horas por ID
+      tags: [Registros de horas]
+      parameters:
+        - $ref: "#/components/parameters/IdRuta"
+      responses:
+        "200":
+          description: Registro encontrado, con el cálculo del pago
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaRegistro"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+    put:
+      summary: Actualizar un registro de horas
+      description: Verifica que el registro, el empleado y su rol existan, y recalcula el pago.
+      tags: [Registros de horas]
+      parameters:
+        - $ref: "#/components/parameters/IdRuta"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NuevoRegistroHoras"
+      responses:
+        "200":
+          description: Registro actualizado, con el cálculo del pago
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaRegistro"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+    delete:
+      summary: Eliminar un registro de horas
+      tags: [Registros de horas]
+      parameters:
+        - $ref: "#/components/parameters/IdRuta"
+      responses:
+        "200":
+          description: Registro eliminado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaRegistroEliminado"
+        "400":
+          $ref: "#/components/responses/DatosInvalidos"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+components:
+  # Parámetro de ruta que se reutiliza en todos los endpoints con /{id}
+  parameters:
+    IdRuta:
+      name: id
+      in: path
+      required: true
+      description: ID del documento en MongoDB (24 caracteres hexadecimales)
+      schema:
+        type: string
+        example: 6ae188baa9c7c3799346f660
+
+  # Respuestas de error que se reutilizan en varios endpoints
+  responses:
+    DatosInvalidos:
+      description: Datos inválidos, identificador mal formado o regla de negocio incumplida
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RespuestaError"
+          example:
+            status: error
+            message: Error de validación
+            errors:
+              - campo: valorHora
+                mensaje: El valor por hora no puede ser negativo
+    NoEncontrado:
+      description: El recurso solicitado no existe
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RespuestaError"
+          example:
+            status: error
+            message: No se encontró el rol
+            errors: []
+    ErrorInterno:
+      description: Error interno del servidor
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RespuestaError"
+          example:
+            status: error
+            message: Error interno del servidor
+            errors: []
+
+  schemas:
+    # ------------------------------------------------ Modelos de datos
+    Rol:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 6ae188baa9c7c3799346f660
+        nombre:
+          type: string
+          example: Administrativo
+        valorHora:
+          type: number
+          example: 4000
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-28T05:31:38.605Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-10-28T05:31:38.605Z"
+
+    NuevoRol:
+      type: object
+      required: [nombre, valorHora]
+      properties:
+        nombre:
+          type: string
+          description: Nombre del rol (único, sin espacios al inicio ni al final)
+          example: Gerente
+        valorHora:
+          type: number
+          minimum: 0
+          description: Valor de la hora normal de trabajo
+          example: 6000
+
+    Empleado:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 6ae188baa9c7c3799346f663
+        nombre:
+          type: string
+          example: Juan
+        apellido:
+          type: string
+          example: Pérez
+        dni:
+          type: string
+          example: "40123456"
+        rolId:
+          $ref: "#/components/schemas/Rol"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Al eliminar, el empleado se devuelve sin cargar el rol: rolId es solo el ID
+    EmpleadoEliminado:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 6ae404637ae084bd0530c8ae
+        nombre:
+          type: string
+          example: Ana
+        apellido:
+          type: string
+          example: Ruiz
+        dni:
+          type: string
+          example: "30111222"
+        rolId:
+          type: string
+          example: 6ae188baa9c7c3799346f661
+
+    NuevoEmpleado:
+      type: object
+      required: [nombre, apellido, dni, rolId]
+      properties:
+        nombre:
+          type: string
+          example: Ana
+        apellido:
+          type: string
+          example: Ruiz
+        dni:
+          type: string
+          pattern: '^\d{7,8}$'
+          description: DNI de 7 u 8 dígitos (único)
+          example: "30111222"
+        rolId:
+          type: string
+          description: ID de un rol existente
+          example: 6ae188baa9c7c3799346f661
+
+    RegistroHoras:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 6ae188baa9c7c3799346f666
+        empleadoId:
+          type: string
+          example: 6ae188baa9c7c3799346f663
+        fecha:
+          type: string
+          format: date-time
+          example: "2026-10-26T00:00:00.000Z"
+        horasTrabajadas:
+          type: number
+          example: 9
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    NuevoRegistroHoras:
+      type: object
+      required: [empleadoId, fecha, horasTrabajadas]
+      properties:
+        empleadoId:
+          type: string
+          description: ID de un empleado existente que tenga rol
+          example: 6ae188baa9c7c3799346f663
+        fecha:
+          type: string
+          description: Fecha trabajada
+          example: "2026-10-28"
+        horasTrabajadas:
+          type: number
+          minimum: 0.01
+          maximum: 24
+          description: Horas trabajadas en el día (mayor que 0 y hasta 24)
+          example: 9
+
+    # Detalle del pago de un registro
+    CalculoPago:
+      type: object
+      properties:
+        empleado:
+          type: string
+          example: Juan Pérez
+        horasTrabajadas:
+          type: number
+          example: 9
+        horasNormales:
+          type: number
+          description: Hasta 8 horas, pagadas al valor normal
+          example: 8
+        horasExtra:
+          type: number
+          description: Horas por encima de 8, pagadas al 150%
+          example: 1
+        valorHora:
+          type: number
+          description: Valor por hora del rol del empleado
+          example: 4000
+        pagoNormal:
+          type: number
+          example: 32000
+        pagoExtra:
+          type: number
+          example: 6000
+        totalPagar:
+          type: number
+          example: 38000
+
+    RegistroConCalculo:
+      type: object
+      properties:
+        registro:
+          $ref: "#/components/schemas/RegistroHoras"
+        calculo:
+          $ref: "#/components/schemas/CalculoPago"
+
+    # ------------------------------ Respuestas con el formato Envelope
+    RespuestaRol:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/Rol"
+
+    RespuestaRoles:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Rol"
+
+    RespuestaEmpleado:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/Empleado"
+
+    RespuestaEmpleados:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Empleado"
+
+    RespuestaEmpleadoEliminado:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/EmpleadoEliminado"
+
+    RespuestaRegistro:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/RegistroConCalculo"
+
+    RespuestaRegistros:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegistroConCalculo"
+
+    RespuestaRegistroEliminado:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/RegistroHoras"
+
+    RespuestaError:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        message:
+          type: string
+          example: Descripción del error
+        errors:
+          type: array
+          description: Detalle de los errores (por ejemplo, un objeto por campo inválido)
+          items:
+            type: object
