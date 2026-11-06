@@ -2,19 +2,39 @@
 
 API REST para registrar las horas trabajadas por los empleados y calcular cuánto se les paga, con recargo por horas extra.
 
-Hecha con **Node.js**, **Express 5**, **MongoDB (Mongoose)** y **Zod** para validar los datos de entrada. Incluye documentación interactiva con **Swagger UI** y tests del cálculo de pago.
+Hecha con **Node.js**, **Express 5**, **MongoDB (Mongoose)** y **Zod**. Incluye documentación interactiva con **Swagger UI** y tests del cálculo de pago.
 
 ## Regla de negocio
 
 El valor por hora sale del **rol** del empleado. Por cada registro diario:
 
-| Horas trabajadas      | Cómo se pagan                     |
-| --------------------- | --------------------------------- |
-| Las primeras 8        | Al valor normal de la hora        |
-| Las que superan las 8 | Al **150 %** del valor de la hora |
+| Horas trabajadas      | Cómo se pagan                                  |
+| --------------------- | ---------------------------------------------- |
+| Las primeras 8        | Al valor normal de la hora                     |
+| Las que superan las 8 | Al valor normal **más un recargo del 50 %**    |
 
-Ejemplo: un Administrativo ($4.000 la hora) que trabaja 10 horas cobra
-`8 × 4.000 + 2 × 4.000 × 1,5 = $44.000`.
+**Ejemplo:** un Administrativo ($4.000 la hora) que trabaja 10 horas cobra:
+
+```
+8 × 4.000 + 2 × 4.000 × 1,5 = $44.000
+```
+
+### El multiplicador `1,5`
+
+El recargo es del **50 %**, pero la hora extra no se paga a la mitad: se paga al valor normal **más** ese 50 %.
+
+| Concepto                  | Cuenta        | Resultado |
+| ------------------------- | ------------- | --------- |
+| Hora normal               | `4.000 × 1`   | `$4.000`  |
+| Recargo del 50 %          | `4.000 × 0,5` | `$2.000`  |
+| **Hora extra**            | `4.000 + 2.000` | **`$6.000`** |
+| Que es lo mismo que       | `4.000 × 1,5` | **`$6.000`** |
+
+En el código, el recargo está definido como `RECARGO_HORA_EXTRA = 0.5` y se aplica así:
+
+```js
+pagoExtra = horasExtra * valorHora * (1 + RECARGO_HORA_EXTRA);
+```
 
 Para que la regla sea correcta, **un empleado solo puede tener un registro por día**. Si se intenta cargar un segundo registro el mismo día, la API responde `400`.
 
@@ -29,6 +49,8 @@ Para que la regla sea correcta, **un empleado solo puede tener un registro por d
 ## Instalación
 
 ```bash
+git clone https://github.com/FzJw-06/Parcial-Laboratorio.git
+cd Parcial-Laboratorio
 pnpm install
 ```
 
@@ -41,6 +63,8 @@ cp .env.example .env
 # Windows (PowerShell o CMD)
 copy .env.example .env
 ```
+
+### Variables de entorno
 
 | Variable    | Descripción               | Valor del ejemplo                               |
 | ----------- | ------------------------- | ----------------------------------------------- |
@@ -55,7 +79,7 @@ copy .env.example .env
 node src/seed.js
 ```
 
-Crea 3 roles (Administrativo, Operario, Supervisor), 3 empleados y 3 registros de horas.
+Crea 3 roles (Administrativo, Operario, Supervisor), 3 empleados y 3 registros de horas, con IDs `1`, `2` y `3`.
 
 > ⚠️ **Borra toda la base de datos** antes de cargar los datos. Por seguridad, solo funciona si `MONGO_URI` apunta a `localhost` o `127.0.0.1`. Con MongoDB Atlas hay que cargar los datos a mano desde Swagger.
 
@@ -73,17 +97,31 @@ Conectado a MongoDB
 Servidor iniciado en http://localhost:3000
 ```
 
-> `pnpm dev` reinicia solo cuando cambia un archivo `.js` o `.json`. Si modificás `swagger.css` o `swagger.yaml`, escribí `rs` en la terminal para reiniciar.
+> `pnpm dev` reinicia solo cuando cambia un archivo `.js` o `.json`. Si modificás `swagger.css` o `swagger.yaml`, escribí `rs` en la terminal para reiniciar el servidor.
 
-## Documentación interactiva
+## Documentación interactiva (Swagger UI)
 
-Con el servidor corriendo, abrí **http://localhost:3000/api-docs** (Swagger UI). Ahí se ven todos los endpoints, con ejemplos, y se pueden probar con el botón **Try it out**.
+Con el servidor corriendo, abrí **http://localhost:3000/api-docs**.
 
-Para probar rápido el cálculo de pago:
+Ahí están todos los endpoints agrupados por recurso, con ejemplos y el botón **Try it out** para probarlos sin salir del navegador.
 
-1. `GET /empleados` y copiá el `_id` de un empleado.
-2. `POST /registros-horas` con ese `_id`.
-3. Mirá `calculo.totalPagar` en la respuesta.
+### Cómo leer las respuestas
+
+Cada endpoint muestra una lista de **respuestas documentadas**: `200`, `201`, `400`, `404`, `500`, etc. Esa lista indica todo lo que el endpoint *puede* devolver según su contrato, no lo que devolvió tu petición.
+
+Después de **Execute**, la respuesta real aparece debajo, en **Server response**:
+
+- **Code:** el código que devolvió la API en esa prueba.
+- **Response body:** el JSON real.
+- **Response headers:** las cabeceras de la respuesta.
+
+Por ejemplo, si buscás `GET /empleados/3` y el empleado existe, en *Server response* vas a ver `200`. Los códigos `400`, `404` y `500` siguen listados arriba solo como referencia de lo que podría pasar.
+
+### Ayudas de navegación
+
+- **Buscador:** filtrá endpoints por ruta o descripción.
+- **Duración:** cada petición muestra cuánto tardó.
+- **Enlaces directos:** la URL cambia al abrir un endpoint, así se puede compartir.
 
 ## Endpoints
 
@@ -107,9 +145,13 @@ Todos bajo el prefijo `/api/v1`.
 |                    | PUT    | `/registros-horas/:id` | Reemplazar un registro                            |
 |                    | DELETE | `/registros-horas/:id` | Eliminar un registro                              |
 
-> Los ID son **números autoincrementales** (`1`, `2`, `3`, ...). No son el ObjectId
-> largo de MongoDB. En los cuerpos JSON se pueden enviar como número (`1`) o como
-> texto numérico (`"1"`); la API los convierte a número.
+Además, `GET /` responde un mensaje simple para comprobar que la API está viva.
+
+### Sobre los IDs
+
+Los `_id` son **números autoincrementales** (`1`, `2`, `3`, ...), no el ObjectId largo de MongoDB. Se pueden enviar como número (`1`) o como texto numérico (`"1"`); la API los convierte a número.
+
+El número sale de la colección `contadores`, que guarda la última secuencia usada por cada recurso. Si una creación falla después de reservar el número, ese ID queda sin usar: puede haber huecos, pero nunca IDs repetidos.
 
 ### Ejemplo: cargar horas
 
@@ -134,7 +176,9 @@ Respuesta `201`:
       "_id": 1,
       "empleadoId": 1,
       "fecha": "2026-11-03",
-      "horasTrabajadas": 10
+      "horasTrabajadas": 10,
+      "createdAt": "2026-11-03T00:00:00.000Z",
+      "updatedAt": "2026-11-03T00:00:00.000Z"
     },
     "calculo": {
       "empleado": "Juan Pérez",
@@ -150,7 +194,7 @@ Respuesta `201`:
 }
 ```
 
-### Formato de las respuestas
+## Formato de las respuestas
 
 Éxito:
 
@@ -181,13 +225,14 @@ Error:
 | `404`  | El recurso o la ruta no existe                                         |
 | `500`  | Error interno (el detalle se registra en el servidor, no se expone)    |
 
-### Reglas de integridad
+## Reglas de integridad y validación
 
 - No se puede eliminar un **rol** que tenga empleados asignados.
 - No se puede eliminar un **empleado** que tenga registros de horas.
 - El **DNI** (7 u 8 dígitos) y el **nombre del rol** son únicos.
 - Un empleado tiene **un solo registro por día**.
 - Las horas de un registro van de más de 0 hasta 24.
+- El **valor por hora** no puede ser negativo.
 - Las fechas se devuelven como `AAAA-MM-DD`, sin hora.
 
 ## Tests
@@ -219,6 +264,7 @@ El segundo debe responder `404`. En Windows PowerShell hay que escribir `curl.ex
 | Error en `import.meta.dirname`                                     | Node demasiado viejo. Actualizá a la versión 20.11 o superior.                                                                                         |
 | `ENOENT ... swagger.css`                                           | Falta el archivo `src/docs/swagger.css`.                                                                                                               |
 | `EADDRINUSE`                                                       | El puerto está ocupado. Cambiá `PORT` en el `.env`.                                                                                                    |
+| Los cambios en Swagger no se ven                                      | El CSS y el YAML se leen al arrancar. Reiniciá el servidor (o escribí `rs` con `pnpm dev`).                                                             |
 
 ## Capturas de funcionamiento
 
@@ -261,13 +307,15 @@ src/
 ├── routes/           # URL + método HTTP → controlador
 ├── controllers/      # Manejo de req/res y códigos de estado
 ├── services/         # Lógica de negocio (incluye el cálculo de pago)
-├── models/           # Esquemas de Mongoose (incluye Contador para los ID autoincrementales)
+├── models/           # Esquemas de Mongoose y contador de IDs autoincrementales
 ├── schemas/          # Validación de entrada con Zod
 ├── middlewares/      # Validación y manejo centralizado de errores
 ├── utils/            # AppError
-└── docs/             # swagger.yaml (OpenAPI 3) y swagger.css
+└── docs/             # swagger.yaml, swagger.css y EXPLICACION-CODIGO.md
 test/                 # Tests con el runner nativo de Node
+docs/                 # Explicación detallada del código (EXPLICACION-CODIGO.md)
 ```
+
 
 ## Arquitectura
 
@@ -283,3 +331,5 @@ Ruta → Validación (Zod) → Controlador → Servicio → Modelo → MongoDB
 - **Servicios:** aplican las reglas (cálculo de pago, integridad). No conocen HTTP.
 - **Modelos:** esquemas de Mongoose. Son lo único que toca la base de datos.
 - **Errores:** un middleware central convierte cualquier error en la respuesta con el formato estándar.
+
+> La explicación detallada de cada archivo, el flujo completo de una petición y las decisiones de diseño están en **[docs/EXPLICACION-CODIGO.md](docs/EXPLICACION-CODIGO.md)**.

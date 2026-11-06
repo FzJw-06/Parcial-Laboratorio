@@ -6,7 +6,7 @@ import { AppError } from "../utils/AppError.js";
 
 // Reglas de negocio, definidas en un solo lugar para poder cambiarlas fácilmente
 const HORAS_NORMALES_POR_DIA = 8; // las primeras 8 horas se pagan al valor normal
-const RECARGO_HORA_EXTRA = 1.5; // las horas que superan las 8 se pagan al 150%
+const RECARGO_HORA_EXTRA = 0.5; // 50 % adicional sobre el valor normal de la hora
 
 // Función PURA de cálculo (no toca la base de datos): recibe un empleado que ya trae su rol
 // cargado (populate) y las horas trabajadas, y devuelve el detalle del pago.
@@ -25,7 +25,8 @@ export function calcularPago(empleado, horasTrabajadas) {
   const horasExtra = Math.max(horasTrabajadas - HORAS_NORMALES_POR_DIA, 0);
 
   const pagoNormal = horasNormales * valorHora;
-  const pagoExtra = horasExtra * valorHora * RECARGO_HORA_EXTRA;
+  // La hora extra se paga al valor normal + el 50 % de recargo (es decir, × 1,5)
+  const pagoExtra = horasExtra * valorHora * (1 + RECARGO_HORA_EXTRA);
   const totalPagar = pagoNormal + pagoExtra;
 
   return {

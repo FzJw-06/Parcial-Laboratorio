@@ -26,7 +26,7 @@ info:
 
     ## Cómo probarla en 3 pasos
 
-    1. En **Empleados**, ejecutá `GET /empleados` y copiá el `_id` de uno.
+    1. En **Empleados**, ejecutá `GET /empleados` y copiá el `_id` numérico de uno.
     2. En **Registros de horas**, ejecutá `POST /registros-horas` con ese `_id`.
     3. Mirá el pago en `calculo.totalPagar` de la respuesta.
 
@@ -46,6 +46,21 @@ info:
     | `400` | Datos inválidos, ID mal formado, valor duplicado o regla de integridad |
     | `404` | El recurso no existe |
     | `500` | Error interno del servidor |
+
+    > **Cómo leer las respuestas.** La lista *Responses* de cada endpoint muestra
+    > todas las respuestas que ese endpoint **puede** devolver según su contrato
+    > (`200`, `400`, `404`, `500`, ...). No son las que devolvió tu prueba.
+    > Al ejecutar con **Try it out → Execute**, la respuesta real aparece debajo,
+    > en **Server response**. Por ejemplo, `GET /empleados/3` devuelve `200`: ese
+    > es el código que vas a ver en *Server response*, mientras que los demás
+    > siguen listados solo como referencia.
+
+  license:
+    name: ISC
+
+externalDocs:
+  description: Repositorio en GitHub
+  url: https://github.com/FzJw-06/Parcial-Laboratorio
 
 servers:
   - url: http://localhost:3000/api/v1

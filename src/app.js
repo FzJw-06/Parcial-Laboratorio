@@ -21,7 +21,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Documentación interactiva (Swagger UI) a partir del archivo OpenAPI
-// Documentación interactiva (Swagger UI) a partir del archivo OpenAPI
 const swaggerDocument = YAML.load(
   path.join(import.meta.dirname, "docs", "swagger.yaml"),
 );
@@ -37,9 +36,13 @@ app.use(
     customCss: swaggerCss,
     customSiteTitle: "API Horas Pagas",
     swaggerOptions: {
-      docExpansion: "none", // los endpoints arrancan cerrados
+      docExpansion: "list", // muestra la lista de endpoints y deja los cuerpos cerrados
       defaultModelsExpandDepth: -1, // oculta la sección "Schemas" del final
-      //tagsSorter: "alpha",
+      displayRequestDuration: true, // muestra cuánto tarda cada petición
+      filter: true, // habilita el buscador de endpoints
+      deepLinking: true, // permite enlazar directamente a un endpoint
+      persistAuthorization: true, // conserva la autorización al recargar
+      syntaxHighlight: { theme: "obsidian" }, // resaltado acorde al tema oscuro
     },
   }),
 );
