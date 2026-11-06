@@ -369,13 +369,13 @@ paths:
               jornadaNormal:
                 summary: Jornada normal (8 horas)
                 value:
-                  empleadoId: 6ae188baa9c7c3799346f663
+                  empleadoId: 1
                   fecha: "2026-11-02"
                   horasTrabajadas: 8
               conHorasExtra:
                 summary: Con horas extra (10 horas)
                 value:
-                  empleadoId: 6ae188baa9c7c3799346f663
+                  empleadoId: 1
                   fecha: "2026-11-03"
                   horasTrabajadas: 10
       responses:
@@ -491,10 +491,10 @@ components:
       name: id
       in: path
       required: true
-      description: "`_id` del documento (24 caracteres hexadecimales)"
+      description: "`_id` numérico y autoincremental del documento (1, 2, 3, ...)"
       schema:
-        type: string
-        example: 6ae188baa9c7c3799346f660
+        type: integer
+        example: 1
 
   # Respuestas de error que se reutilizan en varios endpoints
   responses:
@@ -547,8 +547,9 @@ components:
       type: object
       properties:
         _id:
-          type: string
-          example: 6ae188baa9c7c3799346f660
+          type: integer
+          description: ID numérico autoincremental
+          example: 1
         nombre:
           type: string
           example: Administrativo
@@ -583,8 +584,9 @@ components:
       type: object
       properties:
         _id:
-          type: string
-          example: 6ae188baa9c7c3799346f663
+          type: integer
+          description: ID numérico autoincremental
+          example: 1
         nombre:
           type: string
           example: Juan
@@ -610,8 +612,9 @@ components:
       type: object
       properties:
         _id:
-          type: string
-          example: 6ae404637ae084bd0530c8ae
+          type: integer
+          description: ID numérico autoincremental
+          example: 1
         nombre:
           type: string
           example: Ana
@@ -622,9 +625,9 @@ components:
           type: string
           example: "30111222"
         rolId:
-          type: string
-          description: Solo el ID del rol (acá no se carga el rol completo)
-          example: 6ae188baa9c7c3799346f661
+          type: integer
+          description: Solo el ID numérico del rol (acá no se carga el rol completo)
+          example: 1
 
     NuevoEmpleado:
       type: object
@@ -642,19 +645,21 @@ components:
           description: DNI de 7 u 8 dígitos, solo números (único)
           example: "30111222"
         rolId:
-          type: string
-          description: "`_id` de un rol existente"
-          example: 6ae188baa9c7c3799346f661
+          type: integer
+          description: "`_id` numérico de un rol existente"
+          example: 1
 
     RegistroHoras:
       type: object
       properties:
         _id:
-          type: string
-          example: 6ae188baa9c7c3799346f666
+          type: integer
+          description: ID numérico autoincremental
+          example: 1
         empleadoId:
-          type: string
-          example: 6ae188baa9c7c3799346f663
+          type: integer
+          description: ID numérico del empleado
+          example: 1
         fecha:
           type: string
           format: date
@@ -677,9 +682,9 @@ components:
       required: [empleadoId, fecha, horasTrabajadas]
       properties:
         empleadoId:
-          type: string
-          description: "`_id` de un empleado existente que tenga rol"
-          example: 6ae188baa9c7c3799346f663
+          type: integer
+          description: "`_id` numérico de un empleado existente que tenga rol"
+          example: 1
         fecha:
           type: string
           format: date

@@ -39,7 +39,7 @@ app.use(
     swaggerOptions: {
       docExpansion: "none", // los endpoints arrancan cerrados
       defaultModelsExpandDepth: -1, // oculta la sección "Schemas" del final
-      tagsSorter: "alpha",
+      //tagsSorter: "alpha",
     },
   }),
 );

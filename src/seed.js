@@ -24,15 +24,21 @@ async function sembrar() {
     RegistroHoras.createIndexes(),
   ]);
 
-  const roles = await Rol.insertMany([
+  // Se usa create() (y no insertMany) porque insertMany no ejecuta los hooks
+  // que asignan los IDs numéricos autoincrementales.
+  const roles = [];
+  for (const datos of [
     { nombre: "Administrativo", valorHora: 4000 },
     { nombre: "Operario", valorHora: 3500 },
     { nombre: "Supervisor", valorHora: 5000 },
-  ]);
+  ]) {
+    roles.push(await Rol.create(datos));
+  }
 
   const [administrativo, operario, supervisor] = roles;
 
-  const empleados = await Empleado.insertMany([
+  const empleados = [];
+  for (const datos of [
     {
       nombre: "Juan",
       apellido: "Pérez",
@@ -51,15 +57,19 @@ async function sembrar() {
       dni: "38555111",
       rolId: supervisor._id,
     },
-  ]);
+  ]) {
+    empleados.push(await Empleado.create(datos));
+  }
 
   const [juan, maria, carlos] = empleados;
 
-  await RegistroHoras.insertMany([
+  for (const datos of [
     { empleadoId: juan._id, fecha: "2026-10-26", horasTrabajadas: 9 },
     { empleadoId: maria._id, fecha: "2026-10-26", horasTrabajadas: 8 },
     { empleadoId: carlos._id, fecha: "2026-10-27", horasTrabajadas: 10 },
-  ]);
+  ]) {
+    await RegistroHoras.create(datos);
+  }
 
   console.log("Seed completado.");
   console.log(

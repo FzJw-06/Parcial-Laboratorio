@@ -21,9 +21,11 @@ export const empleadoSchema = z.object({
     .trim()
     .regex(/^\d{7,8}$/, "El DNI debe tener 7 u 8 dígitos"),
 
-  // rolId: el ID del rol asignado. Un ObjectId de MongoDB son 24 caracteres hexadecimales.
+  // rolId: el ID numérico y autoincremental del rol asignado (1, 2, 3, ...).
+  // Se acepta como número o como texto numérico ("1") y se convierte a número.
   // Acá solo se revisa el formato; que el rol exista realmente se comprueba en el servicio.
-  rolId: z
-    .string({ error: "El rol es obligatorio" })
-    .regex(/^[0-9a-fA-F]{24}$/, "El ID del rol no es válido"),
+  rolId: z.coerce
+    .number({ error: "El rol es obligatorio" })
+    .int("El ID del rol debe ser un número entero")
+    .positive("El ID del rol no es válido"),
 });

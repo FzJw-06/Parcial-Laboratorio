@@ -1,9 +1,12 @@
 import { z } from "zod";
 
 export const registroHorasSchema = z.object({
-  empleadoId: z
-    .string()
-    .regex(/^[0-9a-fA-F]{24}$/, "El ID del empleado no es válido"),
+  // ID numérico y autoincremental del empleado (1, 2, 3, ...).
+  // Se acepta como número o como texto numérico ("1") y se convierte a número.
+  empleadoId: z.coerce
+    .number({ error: "El empleado es obligatorio" })
+    .int("El ID del empleado debe ser un número entero")
+    .positive("El ID del empleado no es válido"),
 
   fecha: z
     .string()
