@@ -1,3 +1,4 @@
+// Modelo de Rol: define cuánto vale la hora de un empleado.
 import mongoose from "mongoose";
 import { siguienteId } from "./Contador.js";
 
@@ -8,8 +9,8 @@ const rolSchema = new mongoose.Schema(
     nombre: {
       type: String,
       required: [true, "El nombre del rol es obligatorio"],
-      trim: true,
-      unique: true,
+      trim: true, // elimina espacios al inicio y al final
+      unique: true, // no puede haber dos roles con el mismo nombre
     },
     valorHora: {
       type: Number,
@@ -17,16 +18,20 @@ const rolSchema = new mongoose.Schema(
       min: [0, "El valor por hora no puede ser negativo"],
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true, // agrega createdAt y updatedAt automáticamente
+  },
 );
 
 // Antes de validar un documento nuevo, le asigna el siguiente ID de la secuencia
 rolSchema.pre("validate", async function () {
+  // Solo genera ID si el documento es nuevo y todavía no tiene uno
   if (this.isNew && this._id == null) {
     this._id = await siguienteId("roles");
   }
 });
 
+// Crea el modelo "Rol" y lo asocia a la colección "roles"
 const Rol = mongoose.model("Rol", rolSchema, "roles");
 
 export default Rol;

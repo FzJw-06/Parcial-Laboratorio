@@ -2,6 +2,7 @@
 // Se usa tanto en el POST (crear) como en el PUT (reemplazar).
 import { z } from "zod";
 
+// Define la forma del objeto que se valida: nombre, apellido, dni y rolId.
 export const empleadoSchema = z.object({
   // Nombre: texto obligatorio. trim() quita espacios de los extremos y min(1) evita un texto vacío.
   nombre: z

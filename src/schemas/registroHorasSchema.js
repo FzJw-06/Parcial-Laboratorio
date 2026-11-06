@@ -1,3 +1,4 @@
+// Esquema de Zod para validar los datos de un registro de horas.
 import { z } from "zod";
 
 export const registroHorasSchema = z.object({
@@ -8,6 +9,7 @@ export const registroHorasSchema = z.object({
     .int("El ID del empleado debe ser un número entero")
     .positive("El ID del empleado no es válido"),
 
+  // Fecha: texto que debe poder interpretarse como una fecha válida
   fecha: z
     .string()
     .refine((valor) => !Number.isNaN(Date.parse(valor)), {
@@ -20,6 +22,7 @@ export const registroHorasSchema = z.object({
       return fecha;
     }),
 
+  // Horas trabajadas: número mayor que 0 y como máximo 24
   horasTrabajadas: z
     .number()
     .positive("Las horas deben ser mayores que cero")

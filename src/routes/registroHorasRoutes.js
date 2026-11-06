@@ -13,16 +13,19 @@ import { registroHorasSchema } from "../schemas/registroHorasSchema.js";
 
 const router = Router();
 
-// Listar todos y consultar uno por ID (no necesitan validar cuerpo)
+// GET /api/v1/registros-horas -> listar todos los registros con su cálculo
 router.get("/", obtenerRegistros);
+
+// GET /api/v1/registros-horas/:id -> obtener un registro con su cálculo
 router.get("/:id", obtenerRegistro);
 
-// Crear y actualizar: primero pasa por validarSchema (Zod) y, si los datos son válidos,
-// recién ahí llega al controlador.
+// POST /api/v1/registros-horas -> crear un registro (primero valida el cuerpo con Zod)
 router.post("/", validarSchema(registroHorasSchema), crearRegistro);
+
+// PUT /api/v1/registros-horas/:id -> reemplazar un registro (primero valida el cuerpo con Zod)
 router.put("/:id", validarSchema(registroHorasSchema), modificarRegistro);
 
-// Eliminar por ID
+// DELETE /api/v1/registros-horas/:id -> eliminar un registro por su ID
 router.delete("/:id", borrarRegistro);
 
 export default router;

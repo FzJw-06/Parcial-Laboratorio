@@ -1,11 +1,15 @@
+// Capa de servicio de roles: contiene las reglas de negocio y habla con los modelos.
+// No sabe nada de HTTP (req/res): solo devuelve datos o lanza errores con AppError.
 import Rol from "../models/Rol.js";
 import Empleado from "../models/Empleado.js";
 import { AppError } from "../utils/AppError.js";
 
+// Devuelve todos los roles ordenados alfabéticamente por nombre.
 export async function listarRoles() {
   return await Rol.find().sort({ nombre: 1 });
 }
 
+// Busca un rol por su ID. Si no existe, lanza un error 404.
 export async function obtenerRolPorId(id) {
   const rol = await Rol.findById(id);
 
@@ -16,16 +20,19 @@ export async function obtenerRolPorId(id) {
   return rol;
 }
 
+// Crea un rol nuevo. El ID se asigna automáticamente en el hook del modelo.
 export async function crearRol(datos) {
   return await Rol.create(datos);
 }
 
+// Reemplaza los datos de un rol existente (PUT).
 export async function actualizarRol(id, datos) {
   const rol = await Rol.findByIdAndUpdate(id, datos, {
-    returnDocument: "after",
-    runValidators: true,
+    returnDocument: "after", // devuelve el documento ya actualizado
+    runValidators: true, // aplica las validaciones del modelo
   });
 
+  // Si no encontró ningún rol con ese ID, avisa con 404
   if (!rol) {
     throw new AppError("No se encontró el rol", 404);
   }
@@ -33,9 +40,11 @@ export async function actualizarRol(id, datos) {
   return rol;
 }
 
+// Elimina un rol, pero solo si no tiene empleados asignados.
 export async function eliminarRol(id) {
   const rol = await Rol.findById(id);
 
+  // Si el rol no existe, no hay nada que borrar: 404
   if (!rol) {
     throw new AppError("No se encontró el rol", 404);
   }
@@ -50,6 +59,7 @@ export async function eliminarRol(id) {
     );
   }
 
+  // Todo en orden: se borra el rol
   await rol.deleteOne();
 
   return rol;

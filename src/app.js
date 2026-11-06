@@ -1,12 +1,20 @@
-// Punto de entrada de la aplicación: configura Express, registra las rutas y arranca el servidor.
-//app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+// Punto de entrada de la aplicación.
+// Configura Express, la documentación, los middlewares, las rutas, el manejo
+// de errores y arranca el servidor después de conectar con MongoDB.
+
 // Carga las variables del archivo .env (PORT, MONGO_URI) dentro de process.env
 import "dotenv/config";
+
+// Módulos nativos de Node: uno para leer archivos y otro para armar rutas
 import fs from "node:fs";
 import path from "node:path";
+
+// Dependencias externas
 import express from "express";
 import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
+
+// Módulos internos del proyecto
 import { conectarMongo } from "./config/dbMongo.js";
 import rolRoutes from "./routes/rolRoutes.js";
 import empleadoRoutes from "./routes/empleadoRoutes.js";
@@ -16,25 +24,31 @@ import {
   manejarErrores,
 } from "./middlewares/manejarErrores.js";
 
+// Crea la aplicación de Express. Sobre "app" se registran middlewares y rutas.
 const app = express();
-// Usa el puerto del .env; si no está definido, usa el 3000
+
+// Puerto del servidor: toma PORT del .env o usa 3000 si no está definido
 const PORT = process.env.PORT || 3000;
 
-// Documentación interactiva (Swagger UI) a partir del archivo OpenAPI
+// ----------------------------- Swagger UI -----------------------------
+// Carga el contrato OpenAPI (títulos, endpoints, esquemas y ejemplos)
 const swaggerDocument = YAML.load(
   path.join(import.meta.dirname, "docs", "swagger.yaml"),
 );
+
+// Carga el CSS propio que se inyecta en Swagger UI para el tema oscuro
 const swaggerCss = fs.readFileSync(
   path.join(import.meta.dirname, "docs", "swagger.css"),
   "utf8",
 );
 
+// Publica la documentación interactiva en /api-docs
 app.use(
   "/api-docs",
   swaggerUi.serve,
   swaggerUi.setup(swaggerDocument, {
-    customCss: swaggerCss,
-    customSiteTitle: "API Horas Pagas",
+    customCss: swaggerCss, // aplica el tema propio
+    customSiteTitle: "API Horas Pagas", // título de la pestaña
     swaggerOptions: {
       docExpansion: "list", // muestra la lista de endpoints y deja los cuerpos cerrados
       defaultModelsExpandDepth: -1, // oculta la sección "Schemas" del final
@@ -47,9 +61,11 @@ app.use(
   }),
 );
 
-// Middleware que convierte el cuerpo JSON de las peticiones en un objeto (req.body)
+// ------------------------- Middlewares generales -------------------------
+// Convierte el cuerpo JSON de cada petición en un objeto disponible en req.body
 app.use(express.json());
 
+// ----------------------------- Rutas -----------------------------
 // Ruta raíz: sirve para comprobar rápido que la API está viva
 app.get("/", (req, res) => {
   res.json({
@@ -60,17 +76,19 @@ app.get("/", (req, res) => {
   });
 });
 
-// Montaje de las rutas de cada recurso, con versionado de API (v1)
+// Monta cada router bajo su prefijo versionado /api/v1
 app.use("/api/v1/roles", rolRoutes);
 app.use("/api/v1/empleados", empleadoRoutes);
 app.use("/api/v1/registros-horas", registroHorasRoutes);
 
-// Estos dos van SIEMPRE al final y en este orden:
+// ------------------------- Manejo de errores -------------------------
+// Estos dos middlewares van SIEMPRE al final y en este orden:
 // 1) rutaNoEncontrada responde 404 si ninguna ruta anterior coincidió
 // 2) manejarErrores atrapa cualquier error lanzado y arma la respuesta de error
 app.use(rutaNoEncontrada);
 app.use(manejarErrores);
 
+// ----------------------------- Arranque -----------------------------
 // Primero conecta con MongoDB y, recién cuando está listo, levanta el servidor
 async function iniciarServidor() {
   await conectarMongo();
@@ -85,4 +103,5 @@ async function iniciarServidor() {
   });
 }
 
+// Ejecuta el arranque de la aplicación
 iniciarServidor();

@@ -29,15 +29,16 @@ export function calcularPago(empleado, horasTrabajadas) {
   const pagoExtra = horasExtra * valorHora * (1 + RECARGO_HORA_EXTRA);
   const totalPagar = pagoNormal + pagoExtra;
 
+  // Detalle del pago que se devuelve al cliente
   return {
-    empleado: `${empleado.nombre} ${empleado.apellido}`,
+    empleado: `${empleado.nombre} ${empleado.apellido}`, // nombre completo
     horasTrabajadas,
-    horasNormales,
-    horasExtra,
-    valorHora,
+    horasNormales, // horas pagadas al valor normal
+    horasExtra, // horas pagadas con recargo
+    valorHora, // valor sacado del rol
     pagoNormal,
     pagoExtra,
-    totalPagar,
+    totalPagar, // suma de ambos pagos
   };
 }
 
@@ -68,6 +69,7 @@ function armarRespuesta(registro) {
   // (los datos del empleado ya van resumidos dentro de "calculo")
   datosRegistro.empleadoId = registro.populated("empleadoId");
 
+  // Forma estándar que usan todos los endpoints de registros
   return {
     registro: datosRegistro,
     calculo: calcularPago(empleado, registro.horasTrabajadas),
@@ -79,10 +81,12 @@ const cargarEmpleadoYRol = { path: "empleadoId", populate: { path: "rolId" } };
 
 // Lista todos los registros, del más reciente al más antiguo, cada uno con su cálculo.
 export async function listarRegistros() {
+  // find() trae todos; sort(-1) ordena del más reciente al más antiguo
   const registros = await RegistroHoras.find()
     .sort({ fecha: -1 })
     .populate(cargarEmpleadoYRol);
 
+  // Convierte cada documento en { registro, calculo }
   return registros.map(armarRespuesta);
 }
 
@@ -139,6 +143,7 @@ export async function actualizarRegistroHoras(id, datos) {
 
 // Elimina un registro y devuelve el registro eliminado.
 export async function eliminarRegistroHoras(id) {
+  // Busca y elimina en una sola operación
   const registro = await RegistroHoras.findByIdAndDelete(id);
 
   // Si no había ningún registro con ese ID, findByIdAndDelete devuelve null

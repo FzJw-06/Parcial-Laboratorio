@@ -11,6 +11,7 @@ import {
 
 // GET /api/v1/empleados -> lista todos los empleados
 export async function obtenerEmpleados(req, res) {
+  // El servicio devuelve cada empleado con su rol completo
   const empleados = await listarEmpleados();
 
   res.status(200).json({ status: "success", data: empleados });
@@ -24,10 +25,10 @@ export async function obtenerEmpleado(req, res) {
 }
 
 // POST /api/v1/empleados -> crea un empleado con los datos del cuerpo (req.body, ya validado por Zod)
-// Responde 201 (Created) porque se creó un recurso nuevo.
 export async function crearNuevoEmpleado(req, res) {
   const empleado = await crearEmpleado(req.body);
 
+  // 201 (Created) porque se creó un recurso nuevo
   res.status(201).json({ status: "success", data: empleado });
 }
 

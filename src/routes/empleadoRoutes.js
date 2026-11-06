@@ -13,16 +13,19 @@ import { empleadoSchema } from "../schemas/empleadoSchema.js";
 
 const router = Router();
 
-// Listar todos y consultar uno por ID (no necesitan validar cuerpo)
+// GET /api/v1/empleados -> listar todos los empleados
 router.get("/", obtenerEmpleados);
+
+// GET /api/v1/empleados/:id -> obtener un empleado por su ID
 router.get("/:id", obtenerEmpleado);
 
-// Crear y actualizar: primero pasa por validarSchema (Zod) y, si los datos son válidos,
-// recién ahí llega al controlador.
+// POST /api/v1/empleados -> crear un empleado (primero valida el cuerpo con Zod)
 router.post("/", validarSchema(empleadoSchema), crearNuevoEmpleado);
+
+// PUT /api/v1/empleados/:id -> reemplazar un empleado (primero valida el cuerpo con Zod)
 router.put("/:id", validarSchema(empleadoSchema), modificarEmpleado);
 
-// Eliminar por ID
+// DELETE /api/v1/empleados/:id -> eliminar un empleado por su ID
 router.delete("/:id", borrarEmpleado);
 
 export default router;

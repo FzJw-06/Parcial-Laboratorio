@@ -24,15 +24,17 @@ export async function obtenerRegistro(req, res) {
 }
 
 // POST /api/v1/registros-horas -> crea un registro con los datos del cuerpo (req.body, ya validado)
-// Responde 201 (Created) con el registro guardado y el cálculo del pago.
 export async function crearRegistro(req, res) {
+  // El servicio devuelve el registro guardado y el cálculo del pago
   const { registro, calculo } = await crearRegistroHoras(req.body);
 
+  // 201 (Created) con el registro y su cálculo
   res.status(201).json({ status: "success", data: { registro, calculo } });
 }
 
 // PUT /api/v1/registros-horas/:id -> reemplaza los datos del registro indicado en la URL
 export async function modificarRegistro(req, res) {
+  // Se recalcula el pago con los datos nuevos antes de devolver la respuesta
   const { registro, calculo } = await actualizarRegistroHoras(
     req.params.id,
     req.body,

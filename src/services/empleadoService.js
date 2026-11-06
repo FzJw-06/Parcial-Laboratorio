@@ -8,6 +8,7 @@ import { AppError } from "../utils/AppError.js";
 // Función auxiliar (no se exporta): comprueba que el rol indicado exista en la base.
 // Si no existe, corta con un error 400 para no guardar un empleado con un rol inválido.
 async function verificarQueExisteElRol(rolId) {
+  // exists() solo comprueba si hay un documento con ese ID (no lo trae completo)
   const existe = await Rol.exists({ _id: rolId });
 
   if (!existe) {
@@ -19,6 +20,7 @@ async function verificarQueExisteElRol(rolId) {
 // populate("rolId") reemplaza el ID del rol por el documento completo del rol.
 // sort() los ordena por apellido y, si coinciden, por nombre.
 export async function listarEmpleados() {
+  // find() trae todos los empleados; populate y sort se explican arriba
   return await Empleado.find()
     .populate("rolId")
     .sort({ apellido: 1, nombre: 1 });
@@ -55,6 +57,7 @@ export async function actualizarEmpleado(id, datos) {
   // findByIdAndUpdate busca y actualiza en un solo paso.
   // returnDocument: "after" devuelve el documento ya actualizado (no el viejo).
   // runValidators: true aplica también las validaciones del modelo de Mongoose.
+  // populate("rolId") devuelve el empleado con el rol completo en la respuesta.
   const empleado = await Empleado.findByIdAndUpdate(id, datos, {
     returnDocument: "after",
     runValidators: true,
@@ -70,6 +73,7 @@ export async function actualizarEmpleado(id, datos) {
 
 // Elimina un empleado.
 export async function eliminarEmpleado(id) {
+  // Busca el empleado para comprobar que exista antes de borrar
   const empleado = await Empleado.findById(id);
 
   if (!empleado) {
