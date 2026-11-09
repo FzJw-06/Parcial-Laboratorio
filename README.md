@@ -38,6 +38,176 @@ pagoExtra = horasExtra * valorHora * (1 + RECARGO_HORA_EXTRA);
 
 Para que la regla sea correcta, **un empleado solo puede tener un registro por día**. Si se intenta cargar un segundo registro el mismo día, la API responde `400`.
 
+## Probar la API desde cero
+
+Guía para alguien que nunca corrió el proyecto. Seguí los pasos en orden: cada uno indica qué hacer y qué tiene que mostrar la terminal.
+
+### 1. Instalar Node.js
+
+Necesitás **Node.js 20.11 o superior**. Descargalo de [nodejs.org](https://nodejs.org/) (versión LTS) y comprobá la versión:
+
+```bash
+node -v
+```
+
+Tiene que mostrar `v20.11.0` o superior.
+
+### 2. Instalar pnpm
+
+```bash
+npm install -g pnpm@12.15.0
+pnpm -v
+```
+
+> El proyecto usa **pnpm**. No instales las dependencias con `npm` ni con `yarn`.
+
+### 3. Tener MongoDB corriendo
+
+Elegí una opción:
+
+- **MongoDB local:** instalá [MongoDB Community Server](https://www.mongodb.com/try/download/community) y dejá el servicio iniciado. Por defecto escucha en `127.0.0.1:27017`.
+- **MongoDB Atlas:** creá un cluster gratuito y copiá la cadena de conexión (`mongodb+srv://...`).
+
+> MongoDB Compass **no alcanza**: es solo el visor de datos. Necesitás el servidor de MongoDB corriendo.
+
+### 4. Obtener el proyecto
+
+Con Git:
+
+```bash
+git clone https://github.com/FzJw-06/Parcial-Laboratorio.git
+cd Parcial-Laboratorio
+```
+
+Si te pasaron un ZIP:
+
+```bash
+# Linux / macOS
+unzip sistema-horas-pagas.zip
+cd sistema-horas-pagas
+```
+
+```powershell
+# Windows (PowerShell)
+Expand-Archive sistema-horas-pagas.zip -DestinationPath .
+cd sistema-horas-pagas
+```
+
+### 5. Instalar las dependencias
+
+```bash
+pnpm install
+```
+
+Tiene que terminar con `Done` y crear la carpeta `node_modules/`.
+
+> Si aparece `ERR_PNPM_IGNORED_BUILDS`, revisá que `pnpm-workspace.yaml` diga `'@scarf/scarf': false` (ver [Solución de problemas](#solución-de-problemas)).
+
+### 6. Crear el archivo `.env`
+
+```bash
+# Linux / macOS
+cp .env.example .env
+
+# Windows (PowerShell o CMD)
+copy .env.example .env
+```
+
+Abrí `.env` y revisá los valores:
+
+```env
+PORT=3000
+MONGO_URI=mongodb://127.0.0.1:27017/sistema_horas_pagas
+```
+
+Si usás MongoDB Atlas, reemplazá `MONGO_URI` por tu cadena de conexión.
+
+### 7. Cargar los datos de prueba
+
+```bash
+node src/seed.js
+```
+
+Tiene que mostrar `Seed completado` junto con los IDs de los roles y empleados creados.
+
+> ⚠️ El seed **borra la base indicada en `MONGO_URI`**. Por seguridad, solo funciona si es local (`localhost` o `127.0.0.1`). Con Atlas, cargá los datos a mano desde Swagger.
+
+### 8. Arrancar el servidor
+
+```bash
+pnpm dev
+```
+
+Tiene que mostrar:
+
+```text
+Conectado a MongoDB
+Servidor iniciado en http://localhost:3000
+```
+
+Dejá esa terminal abierta.
+
+### 9. Probar desde Swagger UI
+
+1. Abrí **http://localhost:3000/api-docs** en el navegador.
+2. Desplegá `GET /roles`, tocá **Try it out** y después **Execute**.
+3. En **Server response** tenés que ver el código `200` y una lista con `_id` `1`, `2` y `3`.
+
+Para probar el cálculo del pago:
+
+1. Ejecutá `GET /empleados` y copiá el `_id` de un empleado (por ejemplo, `1`).
+2. Abrí `POST /registros-horas` → **Try it out** y completá el cuerpo:
+
+```json
+{
+  "empleadoId": 1,
+  "fecha": "2026-11-10",
+  "horasTrabajadas": 10
+}
+```
+
+3. Tocá **Execute**. La respuesta `201` incluye el objeto `calculo`:
+
+```json
+{
+  "empleado": "Juan Pérez",
+  "horasTrabajadas": 10,
+  "horasNormales": 8,
+  "horasExtra": 2,
+  "valorHora": 4000,
+  "pagoNormal": 32000,
+  "pagoExtra": 12000,
+  "totalPagar": 44000
+}
+```
+
+> Si repetís el mismo `empleadoId` y la misma `fecha`, la API responde `400`: un empleado solo puede tener un registro por día.
+
+### 10. Probar desde la terminal (opcional)
+
+Con el servidor corriendo, en otra terminal:
+
+```bash
+curl -s http://localhost:3000/api/v1/roles
+curl -s -w "\nHTTP %{http_code}\n" http://localhost:3000/api/v1/empleados/999
+```
+
+El primero devuelve la lista de roles; el segundo, un `404` con el formato de error. En Windows PowerShell usá `curl.exe` en lugar de `curl`.
+
+### 11. Correr los tests (opcional)
+
+```bash
+pnpm test
+```
+
+Tienen que pasar los **9 tests**. No necesitan MongoDB porque prueban solo el cálculo del pago.
+
+### Si algo falla
+
+Revisá la sección [Solución de problemas](#solución-de-problemas), que lista los errores más comunes y cómo resolverlos.
+
+Las secciones que siguen amplían cada paso: requisitos, instalación, variables de entorno, seed y ejecución.
+
 ## Requisitos
 
 - **Node.js 20.11 o superior** (`node -v` para comprobarlo)
@@ -261,6 +431,7 @@ El segundo debe responder `404`. En Windows PowerShell hay que escribir `curl.ex
 | `connect ECONNREFUSED 127.0.0.1:27017`                             | No hay un servidor MongoDB corriendo. Instalá _MongoDB Community Server_ o iniciá el servicio (`net start MongoDB`, en PowerShell como administrador). |
 | `The uri parameter to openUri() must be a string, got "undefined"` | Falta el archivo `.env`. Copiá `.env.example` a `.env`.                                                                                                |
 | `EBADDEVENGINES` al instalar                                       | El proyecto usa pnpm. Instalalo con `npm i -g pnpm` y usá `pnpm install`.                                                                              |
+| `ERR_PNPM_IGNORED_BUILDS` con `@scarf/scarf`                       | `pnpm-workspace.yaml` tiene un valor de ejemplo sin reemplazar. Poné `'@scarf/scarf': false` y volvé a ejecutar `pnpm install`.                        |
 | Error en `import.meta.dirname`                                     | Node demasiado viejo. Actualizá a la versión 20.11 o superior.                                                                                         |
 | `ENOENT ... swagger.css`                                           | Falta el archivo `src/docs/swagger.css`.                                                                                                               |
 | `EADDRINUSE`                                                       | El puerto está ocupado. Cambiá `PORT` en el `.env`.                                                                                                    |
@@ -311,9 +482,9 @@ src/
 ├── schemas/          # Validación de entrada con Zod
 ├── middlewares/      # Validación y manejo centralizado de errores
 ├── utils/            # AppError
-└── docs/             # swagger.yaml, swagger.css y EXPLICACION-CODIGO.md
+└── docs/             # swagger.yaml y swagger.css
 test/                 # Tests con el runner nativo de Node
-docs/                 # Explicación detallada del código (EXPLICACION-CODIGO.md)
+EXPLICACION-CODIGO.md # Explicación detallada del código
 ```
 
 
@@ -332,4 +503,4 @@ Ruta → Validación (Zod) → Controlador → Servicio → Modelo → MongoDB
 - **Modelos:** esquemas de Mongoose. Son lo único que toca la base de datos.
 - **Errores:** un middleware central convierte cualquier error en la respuesta con el formato estándar.
 
-> La explicación detallada de cada archivo, el flujo completo de una petición y las decisiones de diseño están en **[docs/EXPLICACION-CODIGO.md](docs/EXPLICACION-CODIGO.md)**.
+> La explicación detallada de cada archivo, el flujo completo de una petición y las decisiones de diseño están en **[EXPLICACION-CODIGO.md](EXPLICACION-CODIGO.md)**.
